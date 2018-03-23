@@ -1,0 +1,60 @@
+import numpy as np
+from sklearn import neighbors
+import re
+from sklearn.cross_validation import KFold
+
+
+def fetch_posts(filename):
+	for line in open(filename,"r"):
+		post_id,text = line.split("\t")
+		yield int(post_id),text.strip()
+
+
+all_answers = [q for q,v in meta.iteritems() if v['ParentId']!=-1]
+
+Y=np.asarray([meta[aid]['Score']>0 for aid in all_answers])
+
+knn=neighbors.KNeighborsClassifier(n_neighbors=2)
+print(knn)
+
+code_match = re.compile('<pre>(.*?)</pre>',re.MULTILINE|re.DOTALL)
+link_match=re.compile('<a href="http://.*?".*?>(.*?)</a>',re.MULTILINE|re.DOTALL)
+def extract_features_from_body(s):
+	link_count_in_code=0
+	for match_str in code_match.findall(s):
+		link_count_in_code+=len(link_match.findall(match_str))
+	return len(link_match.findall(s))-link_count_in_code
+
+
+X=np.asarray([extract_features_from_body(text)] for post_id,text in fetch_posts() if post_id in all_answers])
+knn=neighbors.KNeighborsClassifier()
+
+#knn.fit(X,Y)
+
+scores=[]
+cv=KFold(n=len(X),k=10,indices=True)
+for train,test in cv:
+	X_train,y_train = X[train],Y[train]
+	X_test,y_test = X[test],Y[test]
+	clf = neighbors.KNeighborsClassifier()
+	clf.fit(X,Y)
+	scores.append(clf.score(X_test,y_test))
+print("Mean(scores)=%.5f\tStd-dev(scores)=%.5f"%(np.mean(scores,np.std(scores))))
+
+def extract_features_from_body(s):
+	num_code_lines=0
+	link_count_in_code=0
+	code_free_s=s
+	for match_str in code_match.findall(s):
+		num_code_lines+=match_str.count("\n")
+		code_free_s=code_match.sub("",code_free_s)
+		link_count_in_code+=len(link_match.findall(match_str))
+		links=link_match.findall(s)
+		link_count = len(links)
+		link_count-= link_count_in_code
+		html_free_s=re.sub(" +"," ",tag_match.sub("", code_free_s)).replace("\n","")
+		link_free_s=html_free_s
+	return len(link_match.findall(s))-link_count_in_code
+
+
+
